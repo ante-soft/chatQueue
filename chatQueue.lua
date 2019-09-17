@@ -1,15 +1,15 @@
 local ADDON_NAME = "ChatQueue"
 
 local AceGUI = LibStub("AceGUI-3.0")
-vQueue = LibStub("AceAddon-3.0"):NewAddon("vQueue", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0", "AceTimer-3.0")
+chatQueue = LibStub("AceAddon-3.0"):NewAddon("chatQueue", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0", "AceTimer-3.0")
 local ScrollingTable = LibStub("ScrollingTable");
 
-local HealerRoleIcon = "|TInterface/Addons/vQueue/media/Healer:20|t"
-local DamageRoleIcon = "|TInterface/Addons/vQueue/media/Damage:20|t"
-local TankRoleIcon = "|TInterface/Addons/vQueue/media/Tank:20|t"
+local HealerRoleIcon = "|TInterface/Addons/chatQueue/media/Healer:20|t"
+local DamageRoleIcon = "|TInterface/Addons/chatQueue/media/Damage:20|t"
+local TankRoleIcon = "|TInterface/Addons/chatQueue/media/Tank:20|t"
 
-local vQueueOptions = {...};
-vQueueOptions.defaults = {
+local chatQueueOptions = {...};
+chatQueueOptions.defaults = {
 	global = {
 		debug = false,
 	},
@@ -22,14 +22,14 @@ vQueueOptions.defaults = {
 	},
 }
 
-local minimapIconLDB = LibStub("LibDataBroker-1.1"):NewDataObject("vQueueMinimapIcon", {
+local minimapIconLDB = LibStub("LibDataBroker-1.1"):NewDataObject("chatQueueMinimapIcon", {
     type = "data source",
     text = ADDON_NAME,
     icon = "Interface/Icons/INV_Chest_Cloth_17",
 
     OnClick = function (self, button)
         if button == "LeftButton" then
-			vQueue:ToggleFrame();
+			chatQueue:ToggleFrame();
             return;
         end
     end,
@@ -41,15 +41,15 @@ local minimapIconLDB = LibStub("LibDataBroker-1.1"):NewDataObject("vQueueMinimap
 local lfmTable = {}
 local groupTable = {}
 
-local vQueueFrame = {}
+local chatQueueFrame = {}
 local playerMessages = {}
 
 local categories = {}
 local leaderMessages = {}
 
-function vQueue:Debug(text)
+function chatQueue:Debug(text)
 	if self.db.global.debug == true then
-		vQueue:Print(text)	
+		chatQueue:Print(text)	
 	end
 end
 
@@ -122,17 +122,17 @@ function OnFilter(key)
 		return
 	end
 
-	vQueue:Debug("OnFilter " .. key.value .. " - tab: " .. vQueueFrame.selectedTab)
+	chatQueue:Debug("OnFilter " .. key.value .. " - tab: " .. chatQueueFrame.selectedTab)
 
 	local filter = function(self, rowdata)
 
-		if vQueueFrame.selectedTab == "LFG" then
+		if chatQueueFrame.selectedTab == "LFG" then
 			if rowdata[3] == key.value then		
 				return true;
 			end
 		end
 
-		if vQueueFrame.selectedTab == "LFM" then
+		if chatQueueFrame.selectedTab == "LFM" then
 			if rowdata[2] == key.value then		
 				return true;
 			end
@@ -140,29 +140,29 @@ function OnFilter(key)
 		return false
 	end
 
-	vQueueFrame.filter = key
-	vQueueFrame.table:SetFilter(filter)
+	chatQueueFrame.filter = key
+	chatQueueFrame.table:SetFilter(filter)
 end
 
-function vQueue:ToggleFrame()
+function chatQueue:ToggleFrame()
 
-	if vQueueFrame.Shown then
-		AceGUI:Release(vQueueFrame)
-		vQueueFrame.Shown = false
+	if chatQueueFrame.Shown then
+		AceGUI:Release(chatQueueFrame)
+		chatQueueFrame.Shown = false
 		return
 	end
 
 	CreateFrame("GameTooltip", "playerQueueToolTip", nil, "GameTooltipTemplate"); -- Tooltip name cannot be nil
 
-	vQueueFrame = AceGUI:Create("Frame")
-	vQueueFrame:SetCallback("OnClose",
+	chatQueueFrame = AceGUI:Create("Frame")
+	chatQueueFrame:SetCallback("OnClose",
 	function(widget) 
 		AceGUI:Release(widget)
-		vQueueFrame.Shown = false
+		chatQueueFrame.Shown = false
 	end)
-	vQueueFrame:SetTitle(ADDON_NAME)
-	vQueueFrame:SetHeight(650)
-	vQueueFrame:SetLayout("List")
+	chatQueueFrame:SetTitle(ADDON_NAME)
+	chatQueueFrame:SetHeight(650)
+	chatQueueFrame:SetLayout("List")
 
 	local tabGroup = AceGUI:Create("TabGroup")
 	tabGroup:SetTabs({{text="Looking for Group", value="LFG"}, {text="Looking for more", value="LFM"}})
@@ -183,12 +183,12 @@ function vQueue:ToggleFrame()
 	clearButton:SetCallback("OnClick",
 		function(widget) 
 
-			if vQueueFrame.selectedTab == "LFG" then
+			if chatQueueFrame.selectedTab == "LFG" then
 				wipe(groupTable)
 				tabGroup.table:SetData(groupTable, true)
 			end
 
-			if vQueueFrame.selectedTab == "LFM" then
+			if chatQueueFrame.selectedTab == "LFM" then
 				wipe(lfmTable)
 				tabGroup.table:SetData(lfmTable, true)
 			end
@@ -200,8 +200,8 @@ function vQueue:ToggleFrame()
 	filterGroup:SetFullWidth(true)
 	filterGroup:AddChildren(dropdownGroup, CreateRoleButton(TankRoleIcon), CreateRoleButton(HealerRoleIcon), CreateRoleButton(DamageRoleIcon))
 
-	vQueueFrame:AddChildren(filterGroup, tabGroup, clearButton)
-	vQueueFrame.Shown = true
+	chatQueueFrame:AddChildren(filterGroup, tabGroup, clearButton)
+	chatQueueFrame.Shown = true
 end
 
 function CreateRoleButton(role)
@@ -307,7 +307,7 @@ function DrawLFG(container)
 		["OnClick"] = function (rowFrame, cellFrame, data, cols, row, realrow, column, table, ...)
 			if data[realrow] ~= nil then
 				local player, class, dungeon = unpack(data[realrow])
-				vQueue:Debug("Invite " .. player)
+				chatQueue:Debug("Invite " .. player)
 				InviteByName(player);
 			end
 			return true;
@@ -437,27 +437,27 @@ function DrawLFM(container)
   -- Callback function for OnGroupSelected
 function SelectGroup(container, event, group)
 	 container:ReleaseChildren()
-	 vQueueFrame.selectedTab = group
+	 chatQueueFrame.selectedTab = group
 	
-	 if vQueueFrame.table then
-		vQueueFrame.table:Hide()
+	 if chatQueueFrame.table then
+		chatQueueFrame.table:Hide()
 	 end
 
 	 if group == "LFG" then
-		vQueueFrame.table = DrawLFG(container)	
+		chatQueueFrame.table = DrawLFG(container)	
 	 elseif group == "LFM" then
-		vQueueFrame.table = DrawLFM(container)
+		chatQueueFrame.table = DrawLFM(container)
 	 end
 
-	 OnFilter(vQueueFrame.filter)
+	 OnFilter(chatQueueFrame.filter)
 end
 
-function vQueue:OnInitialize()
-	self.db = LibStub("AceDB-3.0"):New("vQueueConfig", vQueueOptions.defaults, true)
+function chatQueue:OnInitialize()
+	self.db = LibStub("AceDB-3.0"):New("chatQueueConfig", chatQueueOptions.defaults, true)
 
 	-- Creating the minimap config icon
-	vQueue.minimapConfigIcon = LibStub("LibDBIcon-1.0");
-	vQueue.minimapConfigIcon:Register("vQueueMinimapIcon", minimapIconLDB, self.db.profile.minimap);
+	chatQueue.minimapConfigIcon = LibStub("LibDBIcon-1.0");
+	chatQueue.minimapConfigIcon:Register("chatQueueMinimapIcon", minimapIconLDB, self.db.profile.minimap);
 
 	categories["Raids"] =
 	{
@@ -496,30 +496,30 @@ function vQueue:OnInitialize()
 		scholo = "Scholomance"	
 	}
 
-	-- vQueue:RegisterEvent("CHAT_MSG_SAY", OnChatMessage)
-	vQueue:RegisterEvent("CHAT_MSG_CHANNEL", OnChatMessage)
+	-- chatQueue:RegisterEvent("CHAT_MSG_SAY", OnChatMessage)
+	chatQueue:RegisterEvent("CHAT_MSG_CHANNEL", OnChatMessage)
 
-	vQueue:Print("Initialized!")
+	chatQueue:Print("Initialized!")
 end
 
-function vQueue:refreshTable(table, type)
+function chatQueue:refreshTable(table, type)
 
-    vQueue:Debug("Refresh table " .. type)	
+    chatQueue:Debug("Refresh table " .. type)	
 	
-	if vQueueFrame.Shown and vQueueFrame.selectedTab == type then
-		vQueueFrame.table:SetData(table, true)
+	if chatQueueFrame.Shown and chatQueueFrame.selectedTab == type then
+		chatQueueFrame.table:SetData(table, true)
 	end
 end
 
-function vQueue:CheckOldEntries()
+function chatQueue:CheckOldEntries()
 	local currentTime = GetTime()
 	for i,v in ipairs(lfmTable) do 
 	
 		local dTime = difftime(currentTime, v.time)
 		if dTime > 60 then
 			 tremove(lfmTable, i)
-			 vQueue:Debug("Removed player " .. v[1])
-			 vQueue:refreshTable(lfmTable, "LFM")
+			 chatQueue:Debug("Removed player " .. v[1])
+			 chatQueue:refreshTable(lfmTable, "LFM")
 		end
 	end
 	
@@ -528,17 +528,17 @@ function vQueue:CheckOldEntries()
 		local dTime = difftime(currentTime, v.time)
 		if dTime > 60 then
 			 tremove(groupTable, i)
-			 vQueue:Debug("Removed group " .. v[1])
-			 vQueue:refreshTable(groupTable, "LFG")
+			 chatQueue:Debug("Removed group " .. v[1])
+			 chatQueue:refreshTable(groupTable, "LFG")
 		end
     end
 end
 
-function vQueue:OnEnable()
+function chatQueue:OnEnable()
 	self.timer = self:ScheduleRepeatingTimer("CheckOldEntries", 30)
 end
 
-function vQueue:OnDisable()
+function chatQueue:OnDisable()
 	self:CancelTimer(self.timer)
 end
 
@@ -604,7 +604,7 @@ function hasGroup(table, item)
 	return nil;
 end
 
-function vQueue:addToGroup(dungeon, type, player, playerClass, neededRoles)
+function chatQueue:addToGroup(dungeon, type, player, playerClass, neededRoles)
 
 	local entry = {}
 	local index = nil
@@ -614,7 +614,7 @@ function vQueue:addToGroup(dungeon, type, player, playerClass, neededRoles)
 
 		if index == nil then		
 			tinsert(groupTable, entry)
-		    vQueue:refreshTable(groupTable, type)
+		    chatQueue:refreshTable(groupTable, type)
 		else
 			groupTable[index].time = GetTime()
 		end
@@ -624,7 +624,7 @@ function vQueue:addToGroup(dungeon, type, player, playerClass, neededRoles)
 
 		if index == nil then	
 			tinsert(lfmTable, entry)
-			vQueue:refreshTable(lfmTable, type)
+			chatQueue:refreshTable(lfmTable, type)
 		else
 			lfmTable[index].time = GetTime()
 		end
@@ -678,7 +678,7 @@ function OnChatMessage(event, text, playerFullName, languageName, channelName, p
 						leaderMessages[playerName] = strippedStr	
 						
 						local localizedClass, englishClass, localizedRace, englishRace, sex, name, realm = GetPlayerInfoByGUID(guid);
-						vQueue:addToGroup(kCat , "LFM",  playerName, englishClass, healerRole .. damageRole .. tankRole)
+						chatQueue:addToGroup(kCat , "LFM",  playerName, englishClass, healerRole .. damageRole .. tankRole)
 						groupFound = true	
 						break
 					end
@@ -709,7 +709,7 @@ function OnChatMessage(event, text, playerFullName, languageName, channelName, p
 						playerMessages[playerName] = strippedStr	
 						
 						local localizedClass, englishClass, localizedRace, englishRace, sex, name, realm = GetPlayerInfoByGUID(guid);
-						vQueue:addToGroup(kCat , "LFG",  playerName, englishClass)
+						chatQueue:addToGroup(kCat , "LFG",  playerName, englishClass)
 						groupFound = true;	
 						break
 					end
@@ -719,6 +719,6 @@ function OnChatMessage(event, text, playerFullName, languageName, channelName, p
 	end
 
 	if groupFound == false then
-		vQueue:Debug("No match " .. puncString)
+		chatQueue:Debug("No match " .. puncString)
     end
 end
