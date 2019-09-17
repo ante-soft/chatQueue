@@ -1,5 +1,5 @@
 ## Interface: 11302
-## Title: chatQueue
+## Title: ChatQueue v1.0
 ## Author: Blåtrollet
 ## Notes: Utility for group finding.
 ## SavedVariables: chatQueueConfig
