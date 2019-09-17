@@ -1,0 +1,2 @@
+# chatQueue
+Wow LFG Addon
