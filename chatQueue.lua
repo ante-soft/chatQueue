@@ -58,8 +58,7 @@ local menuTable = {
 		func = function()
 			local table = chatQueueFrame.table
 			local player = unpack(table:GetRow(table.selected))
-			print("Invite " .. player)
-			InviteByName(player)
+			InviteUnit(player)
 		end
 	},
 	{
@@ -67,9 +66,22 @@ local menuTable = {
 		notCheckable = true,
 		func = function()
 			local table = chatQueueFrame.table
-			local player = unpack(table:GetRow(table.selected))
-			print("Whisper " .. player)
-			SendChatMessage("Hi, invite please!", "WHISPER", nil, player)
+			local player, class, dungeon = unpack(table:GetRow(table.selected))
+
+			local message = "Hi, invite for " .. dungeon .. " please!"
+			if chatQueueFrame.selectedTab == "LFG" then
+				message = "Hi, would you like to join for " .. dungeon .. "?"
+			end
+			SendChatMessage(message, "WHISPER", nil, player)
+		end
+	},
+	{
+		text = "Who",
+		notCheckable = true,
+		func = function()
+			local table = chatQueueFrame.table
+			local player, dungeon = unpack(table:GetRow(table.selected))
+			C_FriendList.SendWho(player)
 		end
 	}
 }
@@ -466,9 +478,6 @@ function SelectGroup(container, event, group)
 		chatQueueFrame.table = DrawLFM(container)
 	end
 
-	--  local
-	--  if chatQueueFrame.table:GetRow(table:GetSelection())
-
 	OnFilter(chatQueueFrame.filter)
 end
 
@@ -514,7 +523,6 @@ function chatQueue:OnInitialize()
 		scholo = "Scholomance"
 	}
 
-	-- chatQueue:RegisterEvent("CHAT_MSG_SAY", OnChatMessage)
 	chatQueue:RegisterEvent("CHAT_MSG_CHANNEL", OnChatMessage)
 
 	chatQueue:Print("Initialized!")
@@ -551,24 +559,12 @@ end
 
 function chatQueue:OnEnable()
 	self.timer = self:ScheduleRepeatingTimer("CheckOldEntries", 30)
+
 	CreateFrame("GameTooltip", "playerQueueToolTip", nil, "GameTooltipTemplate") -- Tooltip name cannot be nil
 end
 
 function chatQueue:OnDisable()
 	self:CancelTimer(self.timer)
-end
-
--- return the first integer index holding the value
-function AnIndexOf(t, val)
-	local i = 0
-	for k, v in pairs(t) do
-		if k == val then
-			return i
-		end
-		if v ~= nil then
-			i = i + 1
-		end
-	end
 end
 
 function getDifficultyColor(levelKey, playerLevel)
