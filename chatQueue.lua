@@ -49,6 +49,10 @@ local playerMessages = {}
 
 local categories = {}
 local leaderMessages = {}
+local currentFilter = {}
+currentFilter[HealerRoleIcon] = false
+currentFilter[DamageRoleIcon] = false
+currentFilter[TankRoleIcon] = false
 
 local menuTable = {
 	{text = "Player", isTitle = true, notCheckable = true},
@@ -57,8 +61,10 @@ local menuTable = {
 		notCheckable = true,
 		func = function()
 			local table = chatQueueFrame.table
-			local player = unpack(table:GetRow(table.selected))
-			InviteUnit(player)
+			if table.selected ~= nil then
+				local player = unpack(table:GetRow(table.selected))
+				InviteUnit(player)
+			end
 		end
 	},
 	{
@@ -66,13 +72,17 @@ local menuTable = {
 		notCheckable = true,
 		func = function()
 			local table = chatQueueFrame.table
-			local player, class, dungeon = unpack(table:GetRow(table.selected))
-
-			local message = "Hi, invite for " .. dungeon .. " please!"
-			if chatQueueFrame.selectedTab == "LFG" then
-				message = "Hi, would you like to join for " .. dungeon .. "?"
+			if table.selected ~= nil then
+				local message, player, class, dungeon, needs
+				if chatQueueFrame.selectedTab == "LFG" then
+					player, class, dungeon = unpack(table:GetRow(table.selected))
+					message = "Hi, would you like to join for" .. dungeon .. "?"
+				else
+					player, dungeon, needs = unpack(table:GetRow(table.selected))
+					message = "Hi, invite for " .. dungeon .. " please!"
+				end
+				SendChatMessage(message, "WHISPER", nil, player)
 			end
-			SendChatMessage(message, "WHISPER", nil, player)
 		end
 	},
 	{
@@ -80,8 +90,10 @@ local menuTable = {
 		notCheckable = true,
 		func = function()
 			local table = chatQueueFrame.table
-			local player, dungeon = unpack(table:GetRow(table.selected))
-			C_FriendList.SendWho(player)
+			if table.selected ~= nil then
+				local player, dungeon = unpack(table:GetRow(table.selected))
+				C_FriendList.SendWho(player)
+			end
 		end
 	}
 }
@@ -143,29 +155,54 @@ function filterPunctuation(s)
 	return newString
 end
 
-function OnFilter(key)
-	if key == nil or key.value == nil then
-		return
-	end
-
-	chatQueue:Debug("OnFilter " .. key.value .. " - tab: " .. chatQueueFrame.selectedTab)
+function OnFilter()
+	chatQueue:Debug("OnFilter - tab: " .. chatQueueFrame.selectedTab)
 
 	local filter = function(self, rowdata)
 		if chatQueueFrame.selectedTab == "LFG" then
-			if rowdata[3] == key.value then
+			-- Filter by dungeon
+			if currentFilter.dungeon == nil or rowdata[3] == currentFilter.dungeon then
 				return true
 			end
 		end
 
 		if chatQueueFrame.selectedTab == "LFM" then
-			if rowdata[2] == key.value then
-				return true
+			local needs = rowdata[3]
+			local dungeon = rowdata[2]
+			local isMatch = true
+
+			if
+				currentFilter[TankRoleIcon] == true or currentFilter[DamageRoleIcon] == true or
+					currentFilter[HealerRoleIcon] == true
+			 then
+				isMatch = false
+
+				if currentFilter[TankRoleIcon] == true and string.find(needs, TankRoleIcon) then
+					isMatch = true
+				end
+
+				if currentFilter[DamageRoleIcon] == true and string.find(needs, DamageRoleIcon) then
+					isMatch = true
+				end
+
+				if currentFilter[HealerRoleIcon] == true and string.find(needs, HealerRoleIcon) then
+					isMatch = true
+				end
 			end
+
+			if currentFilter.dungeon ~= nil then
+				isMatch = false
+
+				if dungeon == currentFilter.dungeon then
+					isMatch = true
+				end
+			end
+
+			return isMatch
 		end
 		return false
 	end
 
-	chatQueueFrame.filter = key
 	chatQueueFrame.table:SetFilter(filter)
 end
 
@@ -197,10 +234,23 @@ function chatQueue:ToggleFrame()
 	tabGroup:SetCallback("OnGroupSelected", SelectGroup)
 	tabGroup:SelectTab("LFG")
 
+	-- local order = {}
+	-- order[0] = rfc
+
 	local dropdownGroup = AceGUI:Create("Dropdown")
 	dropdownGroup:SetList(categories["Dungeons"])
 	dropdownGroup:SetLabel("Dungeon")
-	dropdownGroup:SetCallback("OnValueChanged", OnFilter)
+	-- if chatQueueFrame.filter then
+	-- 	print(chatQueueFrame.filter.key)
+	-- 	dropdownGroup:SetValue("RFK")
+	-- end
+	dropdownGroup:SetCallback(
+		"OnValueChanged",
+		function(key)
+			currentFilter.dungeon = key.value
+			OnFilter()
+		end
+	)
 
 	local clearButton = AceGUI:Create("Button")
 	clearButton:SetText("Clear")
@@ -239,9 +289,12 @@ end
 function CreateRoleButton(role)
 	local roleButton = AceGUI:Create("CheckBox")
 	roleButton:SetLabel(role)
+	roleButton:SetValue(false)
 	roleButton:SetCallback(
 		"OnValueChanged",
-		function(value)
+		function(current)
+			currentFilter[role] = roleButton:GetValue()
+			OnFilter()
 		end
 	)
 
@@ -391,12 +444,18 @@ function DrawLFM(container)
 		["name"] = "Dungeon",
 		["width"] = 150,
 		["align"] = "LEFT",
-		["color"] = {
-			["r"] = 1.0,
-			["g"] = 1.0,
-			["b"] = 1.0,
-			["a"] = 1.0
-		},
+		["color"] = function(data, cols, realrow, column, table)
+			if data[realrow] ~= nil then
+				local leader, dungeon, needs, class = unpack(data[realrow])
+				return getDifficultyColor(getglobal("MINLVLS")[dungeon], UnitLevel("player"))
+			end
+			return {
+				["r"] = 1.0,
+				["g"] = 1.0,
+				["b"] = 1.0,
+				["a"] = 1.0
+			}
+		end,
 		["colorargs"] = nil,
 		["bgcolor"] = {
 			["r"] = 0.0,
@@ -478,26 +537,31 @@ function SelectGroup(container, event, group)
 		chatQueueFrame.table = DrawLFM(container)
 	end
 
-	OnFilter(chatQueueFrame.filter)
+	OnFilter()
 end
 
 function chatQueue:OnInitialize()
 	self.db = LibStub("AceDB-3.0"):New("chatQueueConfig", chatQueueOptions.defaults, true)
 
+	self.profileOptions = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable(ADDON_NAME, self.profileOptions)
+	self.profilesFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(ADDON_NAME, "ChatQueue")
+
 	-- Creating the minimap config icon
 	chatQueue.minimapConfigIcon = LibStub("LibDBIcon-1.0")
 	chatQueue.minimapConfigIcon:Register("chatQueueMinimapIcon", minimapIconLDB, self.db.profile.minimap)
 
-	categories["Raids"] = {
-		ubrs = "Upper Blackrock",
-		ony = "Onyxia's Lair",
-		zg = "Zul'Gurub",
-		mc = "Molten Core",
-		ruins = "Ruins of Ahn'Qiraj",
-		bwl = "Blackwing Lair",
-		temple = "Temple of Ahn'Qiraj",
-		naxx = "Naxxramas"
-	}
+	-- categories["Raids"] = {
+	-- 	ubrs = "Upper Blackrock",
+	-- 	ony = "Onyxia's Lair",
+	-- 	zg = "Zul'Gurub",
+	-- 	mc = "Molten Core",
+	-- 	ruins = "Ruins of Ahn'Qiraj",
+	-- 	bwl = "Blackwing Lair",
+	-- 	temple = "Temple of Ahn'Qiraj",
+	-- 	naxx = "Naxxramas"
+	-- }
 	categories["Dungeons"] = {
 		rfc = "Ragefire Chasm",
 		dead = "The Deadmines",
@@ -520,7 +584,15 @@ function chatQueue:OnInitialize()
 		lbrs = "Lower Blackrock",
 		dm = "Dire Maul",
 		strat = "Stratholme",
-		scholo = "Scholomance"
+		scholo = "Scholomance",
+		ubrs = "Upper Blackrock",
+		ony = "Onyxia's Lair",
+		zg = "Zul'Gurub",
+		mc = "Molten Core",
+		ruins = "Ruins of Ahn'Qiraj",
+		bwl = "Blackwing Lair",
+		temple = "Temple of Ahn'Qiraj",
+		naxx = "Naxxramas"
 	}
 
 	chatQueue:RegisterEvent("CHAT_MSG_CHANNEL", OnChatMessage)
@@ -570,25 +642,15 @@ end
 function getDifficultyColor(levelKey, playerLevel)
 	local color = {}
 	if (levelKey - playerLevel) >= 5 then
-		color[1] = 1
-		color[2] = 0
-		color[3] = 0
+		color = {r = 1, g = 0, b = 0, a = 1}
 	elseif (levelKey - playerLevel) <= 4 and (levelKey - playerLevel) >= 3 then
-		color[1] = 1
-		color[2] = 0.5
-		color[3] = 0
+		color = {r = 1, g = 0.5, b = 0, a = 1}
 	elseif (playerLevel - levelKey) <= 4 and (playerLevel - levelKey) >= 3 then
-		color[1] = 0
-		color[2] = 1
-		color[3] = 0
+		color = {r = 0, g = 1, b = 0, a = 1}
 	elseif (playerLevel - levelKey) > 4 then
-		color[1] = 0.5
-		color[2] = 0.5
-		color[3] = 0.5
+		color = {r = 0.5, g = 0.5, b = 0.5, a = 1}
 	else
-		color[1] = 1
-		color[2] = 1
-		color[3] = 0
+		color = {r = 1, g = 1, b = 0, a = 1}
 	end
 	return color
 end
